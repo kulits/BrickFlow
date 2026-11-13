@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BrickFlow</title>
+<link rel="icon" type="image/png" href="assets/favicon.png" />
+<meta name="description" content="BrickFlow: Connectivity-Guided Brick Reconstruction. A model that places a given set of LEGO parts to match a single image, guided toward connected assemblies." />
+<script type="importmap">
+{ "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js", "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/" } }
+</script>
+<style>
+  :root { --ink: #222; --ink-2: #333; --muted: #666; --rule: #ddd; --link: #1a4fbf; --link-hover: #c0392b; --accent: #ffb000; }
+  body { background: #fff; color: var(--ink); font: 16px/1.55 "Helvetica Neue", Helvetica, Arial, sans-serif; margin: 0; -webkit-font-smoothing: antialiased; }
+  main { max-width: 720px; margin: 0 auto; padding: 32px 22px 60px; }
+  .wide { width: min(1040px, calc(100vw - 32px)); margin-left: 50%; transform: translateX(-50%); }
+  h1 { text-align: center; font-size: 28px; line-height: 1.25; margin: 8px 0 18px; }
+  h1 .name { letter-spacing: 0.01em; }
+  h2 { font-size: 20px; margin: 38px 0 8px; }
+  h3 { font-size: 16px; margin: 18px 0 6px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--link); }
+  a:hover { color: var(--link-hover); }
+  .authors { text-align: center; font-size: 19px; margin-bottom: 4px; }
+  .authors sup { font-size: 11px; }
+  .affils { text-align: center; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
+  .affils sup { font-size: 10px; }
+  .venue { text-align: center; margin: 10px 0 14px; font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
+  .buttons { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin: 14px 0 26px; font-size: 14px; }
+  .buttons a, .buttons .disabled { display: inline-flex; align-items: center; gap: 8px; background: #333; color: #fff; text-decoration: none; padding: 8px 16px; border-radius: 20px; transition: transform 0.2s; }
+  .buttons a:hover { color: #fff; transform: scale(1.05); }
+  .buttons svg { width: 17px; height: 17px; fill: currentColor; }
+  .buttons .disabled { background: #8a8a8a; cursor: not-allowed; }
+
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; display: block; }
+  figure img.trim { width: 102.8215%; max-width: none; margin-left: -1.7238%; }
+  figcaption, .demo-cap { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin-top: 8px; }
+  .demo-cap { line-height: inherit; }
+  .cap-justified { text-align: justify; text-align-last: left; }
+  .wide figcaption { max-width: 720px; margin-left: auto; margin-right: auto; }
+  figure + p, .wide + p { margin-top: 30px; }
+  p + .wide { margin-top: 22px; }
+  .row { display: flex; gap: 14px; align-items: flex-end; }
+  .row > figure { min-width: 0; }
+  .sublabel { text-align: center; font-size: 13.5px; margin-top: 6px; }
+
+  .paper-row { display: grid; grid-template-columns: 0.7fr 1fr; gap: 24px; align-items: start; margin-top: 8px; }
+  .paper-row > div { min-width: 0; }
+  .paper-row h3 { margin-top: 0; }
+  .paper-row p { text-align: justify; hyphens: auto; margin-top: 6px; }
+  .paper-row p a { word-break: break-all; }
+  .paper-thumb img { width: 100%; height: auto; display: block; }
+  pre.bib { background: #fafafa; border: 1px solid var(--rule); padding: 12px 14px; font-size: 12.5px; overflow-x: auto; margin: 8px 0; }
+
+  .demo { position: relative; border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; background: #fff; }
+  .demo .stage { position: relative; width: 100%; aspect-ratio: 16 / 8.2; background: #fff; }
+  .demo canvas { touch-action: pan-y !important; }
+  .demo .loading { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+  .demo .hud { position: absolute; z-index: 1; left: 16px; top: 14px; pointer-events: none; }
+  .demo .hud .val { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; white-space: nowrap; }
+  .chip { display: block; margin-top: 2px; font-size: 14px; color: #555; border-radius: 3px; }
+  .chip.ok { color: var(--ink-2); }
+  .chip.flash { animation: chipflash 0.9s ease-out; }
+  @keyframes chipflash { 0%, 30% { color: #111; background: #ffe08a; } 100% { background: transparent; } }
+  .demo .controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 12px 14px; border-top: 1px solid var(--rule); font-size: 14px; }
+  .demo button { font: inherit; font-size: 15px; font-weight: 600; border: 1.5px solid #111; border-radius: 8px; background: #fff; color: #111; padding: 9px 18px; cursor: pointer; display: inline-flex; gap: 8px; align-items: center; }
+  .demo button:hover { background: #f2f2f2; border-color: #666; }
+  .demo button.primary { background: #111; color: #fff; border-color: #222; }
+  .demo button.primary:hover { background: #000; }
+  .demo button.primary.on { border-color: var(--accent); box-shadow: inset 0 -4px 0 var(--accent); }
+  .demo button.primary:disabled { background: #c8c8c8; border-color: #c8c8c8; cursor: not-allowed; }
+  @media (hover: none) { .demo button:not(:disabled):hover { background: #fff; } .demo button.primary:not(:disabled):hover { background: #111; } }
+  .demo label { display: inline-flex; align-items: center; gap: 5px; color: #222; font-size: 14.5px; cursor: pointer; }
+  .demo input[type=checkbox] { accent-color: #111; }
+  .demo .hint { flex-basis: 100%; color: #444; font-size: 13.5px; }
+  .demo input[type=range] { -webkit-appearance: none; appearance: none; height: 22px; background: transparent; }
+  .demo input[type=range]::-webkit-slider-runnable-track { height: 2px; background: #cfcfcf; }
+  .demo input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 13px; height: 13px; border-radius: 50%; background: #111; margin-top: -5.5px; }
+  .demo input[type=range]::-moz-range-track { height: 2px; background: #cfcfcf; }
+  .demo input[type=range]::-moz-range-thumb { width: 13px; height: 13px; border: none; border-radius: 50%; background: #111; }
+  .scrub { flex: 1 1 220px; }
+  .scrub input[type=range] { flex: 1 1 auto; min-width: 120px; }
+  .scrub:has(input:disabled) { visibility: hidden; }
+  .pair .stage { aspect-ratio: 16 / 9.5; }
+  #netdemo .stage { max-height: calc(100svh - 190px); }
+
+  .player .body { display: grid; grid-template-columns: minmax(0, 0.34fr) minmax(0, 1fr); }
+  .player .photo { border-right: 1px solid var(--rule); display: flex; flex-direction: column; justify-content: center; padding: 12px; gap: 8px; }
+  .player .photo img { width: 100%; height: auto; border-radius: 4px; display: block; }
+  .player .photo .cap { font-size: 12.5px; color: var(--muted); text-align: center; }
+  .player .stage { aspect-ratio: 16 / 9; }
+  .player input[type=range] { flex: 1 1 200px; }
+  .player .tl { font-variant-numeric: tabular-nums; min-width: 5.5em; color: var(--ink-2); }
+  .player .picker { display: flex; gap: 6px; padding: 10px 12px; overflow-x: auto; border-top: 1px solid var(--rule); }
+  .player .picker.more { -webkit-mask-image: linear-gradient(to right, #000 82%, transparent); mask-image: linear-gradient(to right, #000 82%, transparent); }
+  .player .thumb { flex: 0 0 auto; width: 58px; height: 58px; padding: 0; border: 2px solid transparent; border-radius: 6px; overflow: hidden; background: #fff; cursor: pointer; }
+  .player .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .player .thumb.sel { border-color: #222; }
+
+  @media (max-width: 640px) {
+    .row { flex-direction: column; align-items: stretch; }
+    .paper-row { grid-template-columns: 1fr; }
+    .demo .stage, .pair .stage { aspect-ratio: 1 / 1; }
+    .demo .hud { position: static; display: flex; flex-wrap: wrap; align-items: baseline; align-content: flex-start; gap: 0 10px; min-height: 58px; padding: 8px 12px; border-bottom: 1px solid var(--rule); }
+    .demo .hud .chip { margin-top: 0; }
+    .demo .controls .scrub { flex: 1 1 0; min-width: calc(100% - 190px); }
+    .demo .controls .scrub input[type=range] { min-width: 0; }
+    .player .body { grid-template-columns: 1fr; }
+    .player .stage { aspect-ratio: 4 / 3; }
+    .player .photo { border-right: none; border-bottom: 1px solid var(--rule); flex-direction: row; align-items: center; padding: 10px 12px; }
+    .player .photo img { width: 48%; }
+  }
+  @media (pointer: coarse) {
+    .demo button { min-height: 44px; padding: 8px 16px; }
+    .demo label { min-height: 44px; }
+    .demo input[type=checkbox] { width: 22px; height: 22px; }
+    .demo input[type=range] { height: 44px; }
+    .demo input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: -12px; }
+    .demo input[type=range]::-moz-range-thumb { width: 26px; height: 26px; }
+    .player .thumb { width: 64px; height: 64px; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <h1><span class="name">BrickFlow</span>: Connectivity-Guided Brick Reconstruction</h1>
+
+  <div class="authors">
+    <a href="https://kulits.github.io" target="_blank" rel="noopener">Peter Kulits</a><sup>1,2</sup>&nbsp;&nbsp;<a href="https://cordeliaschmid.github.io/" target="_blank" rel="noopener">Cordelia Schmid</a><sup>1</sup>
+  </div>
+  <div class="affils">
+    <sup>1</sup>Inria, École Normale Supérieure, CNRS, PSL Research University&nbsp;&nbsp;
+    <sup>2</sup>Max Planck Institute for Intelligent Systems, Tübingen
+  </div>
+  <div class="venue">NeurIPS 2026</div>
+
+  <div class="buttons">
+    <span class="disabled" title="Coming soon"><svg viewBox="0 0 24 24"><path d="M6 2h9l5 5v15H6zM14 3.5V8h4.5"/></svg>Paper</span>
+    <span class="disabled" title="Coming soon"><svg viewBox="0 0 24 24"><path d="M4 4h16v2H4zm0 5h16v2H4zm0 5h10v2H4zm0 5h10v2H4z"/></svg>arXiv</span>
+    <a href="https://github.com/kulits/BrickFlow" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 .5a12 12 0 0 0-3.8 23.4c.6.1.8-.3.8-.6v-2c-3.3.7-4-1.6-4-1.6-.6-1.4-1.4-1.8-1.4-1.8-1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.7-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 0 1 6 0C17.3 4.6 18.3 5 18.3 5c.7 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0 0 12 .5"/></svg>Code</a>
+    <span class="disabled" title="Coming soon"><svg viewBox="0 0 24 24"><path d="M12 2C7 2 3 3.6 3 5.5v13C3 20.4 7 22 12 22s9-1.6 9-3.5v-13C21 3.6 17 2 12 2m0 2c4.4 0 7 1.3 7 1.5S16.4 7 12 7 5 5.7 5 5.5 7.6 4 12 4M5 8.1C6.6 8.7 9.2 9 12 9s5.4-.3 7-.9V12c0 .2-2.6 1.5-7 1.5S5 12.2 5 12zm0 6.5c1.6.6 4.2.9 7 .9s5.4-.3 7-.9v3.9c0 .2-2.6 1.5-7 1.5S5 18.7 5 18.5z"/></svg>Models &amp; Data</span>
+  </div>
+
+  <figure class="wide">
+    <img src="assets/teaser_duck.avif" width="3600" height="1054" alt="The parts of a six-brick duck moved from random poses into several different valid assemblies" />
+    <img src="assets/teaser_truck.avif" width="3600" height="758" alt="An image of a truck, and its parts moved from random poses into the assembled truck" style="margin-top:6px" />
+    <figcaption class="cap-justified">
+      <b>Top:</b> We present BrickFlow, an SE(3) flow-matching model trained to take in a known set of LEGO pieces (pile) with noisy poses (translucent) and denoise them into some valid structure.
+      <b>Bottom:</b> Using a procedural dataset 1% the size, we adapt it for image-conditioned reconstruction.
+    </figcaption>
+  </figure>
+
+  <p>
+    Imagine opening a new set of LEGO to find a box full of pieces, but no instructions.
+    All you have is the picture on the front of the box.
+    You can identify a number of parts visible on the surface, but the image only reveals the outside.
+    The internal structure must be inferred: which bricks support which, what fills the spaces you cannot see.
+    Every piece must end up with a precise position and orientation satisfying discrete connector-defined constraints.
+    This is the problem we address: given an inventory of parts and a single image of the completed assembly, recover the 6D pose of each piece.
+  </p>
+  <div class="wide">
+    <div class="demo player" id="player">
+      <div class="body">
+        <div class="photo"><img data-photo alt="Input image" /><div class="cap" data-cap></div></div>
+        <div class="stage"><div class="loading">Loading…</div></div>
+      </div>
+      <div class="controls">
+        <button class="primary" data-act="play">Pause</button>
+        <input type="range" min="0" max="1000" value="0" data-t aria-label="time, from random poses at 0 to the assembly at 1" />
+        <span class="tl"><i>t</i> = <span data-tlabel>0.00</span></span>
+        <label title="the model's predicted final assembly"><input type="checkbox" data-act="x1" /> show predicted final assembly</label>
+      </div>
+      <div class="picker" data-picker></div>
+    </div>
+    <p class="demo-cap"><i>t</i>&nbsp;=&nbsp;0 denotes the noise endpoint and <i>t</i>&nbsp;=&nbsp;1 the data endpoint.</p>
+  </div>
+
+  <h2>Method</h2>
+  <h3>ProcBrick</h3>
+  <p>
+    To learn a prior over how parts fit together, we train a set-conditioned <i>SE</i>(3) flow model on procedurally generated assemblies.
+    To train our assembly prior, we introduce ProcBrick, a procedural generator of LEGO assemblies, and use it to synthesize a dataset of 100 million structures of 100 parts each.
+    Starting with a random seed piece, we iteratively append pieces onto the structure.
+    Rather than sample naively in space, we attempt placements at random compatible connector sites and reject those that collide.
+    Rather than being human-designed or semantically meaningful, these assemblies provide constraint-rich samples from the physical grammar of LEGO assembly.
+  </p>
+  <figure class="wide">
+    <img src="assets/dataset_samples.avif" width="4096" height="1755" alt="ProcBrick sample renders of increasing complexity" loading="lazy"/>
+    <figcaption class="cap-justified">We provide sample renders from ProcBrick of increasing complexity. The observable differences in shading are due to random HDRI selection done at the time of rendering.</figcaption>
+  </figure>
+
+  <h3>Flow Matching</h3>
+  <p>
+    We train BrickFlow as a flow model over sets of rigid poses.
+    The model predicts the translational and angular velocity of each part.
+    We use a standard diffusion-transformer (DiT) backbone without <i>SE</i>(3)-equivariant layers.
+    As the input is unordered, no positional encoding is used.
+  </p>
+  <p>
+    In inventory-conditioned assembly, which we refer also to as pretraining, the model receives only the part inventory and is tasked with predicting some valid assembly.
+    The purpose of this stage is not to understand object semantics, but to learn the geometry of assembly: which parts can connect, how they tend to align, and how local connections compose into global structure.
+    We then finetune this model to inject image conditioning, using 1% as much data.
+  </p>
+  <figure>
+    <div class="row" style="align-items:flex-start">
+      <figure style="flex: 1 1 0"><img class="trim" src="assets/pipeline_pretrain.svg" alt="Structure-only pretraining" style="margin-top:calc(9.6% - 0.6343%); margin-bottom:-2.4260%"/><div class="sublabel">(a) Structure-only pretraining</div></figure>
+      <figure style="flex: 1 1 0"><img class="trim" src="assets/pipeline_finetune.svg" alt="Image-conditioned finetuning" style="margin-top:-0.6343%; margin-bottom:-1.5611%"/><div class="sublabel">(b) Image-conditioned finetuning</div></figure>
+    </div>
+    <figcaption class="cap-justified">(a) BrickFlow denoises poses given known part types, conditioned on flow time <i>t</i>. (b) Finetuning adds materials and conditioning on frozen DINOv3 features with a Perceiver resampler.</figcaption>
+  </figure>
+
+  <h3>Connectivity Field</h3>
+  <p>
+    However, while the learned flow captures global structure, it does not enforce connectivity.
+    Small positional errors or drifts can leave two parts misaligned, leading to an assembly where the predicted structure might be qualitatively close, but disconnected.
+    To address this, we introduce a connectivity-field guidance, a scalar energy defined over joint pose whose gradient nudges estimates toward connected configurations.
+  </p>
+  <p>
+    For each candidate seat <i>h</i>, a pair of compatible connectors on parts <i>a</i> and <i>b</i>, we measure how far the parts are from a valid seat by <i>c<sub>h</sub></i>&nbsp;&ge;&nbsp;0, the mean squared material displacement from their relative pose to the nearest allowed relative transform of the connector family, minimized over its free coordinates (e.g., stud rotation, axle slide).
+  </p>
+
+  <div class="wide">
+    <div class="demo pair" id="pairdemo">
+      <div class="hud"><div class="val"><i>E</i> = <span data-e>…</span></div><span class="chip" data-chip>…</span></div>
+      <div class="stage"><div class="loading">Loading…</div></div>
+      <div class="controls">
+        <button class="primary" data-act="guide"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>Guide</button>
+        <label class="scrub"><input type="range" min="0" max="1000" value="0" data-s disabled aria-label="progress of Guide" /></label>
+        <button data-act="reset"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 3a5 5 0 1 1-4.6 3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.2 2.6 3.6 6.8 7.6 5.2z" fill="currentColor"/></svg>Reset</button>
+        <span class="hint" data-hint-touch="Tap the 2×2 brick, then drag it to slide it or drag a ring to turn it. Swipe sideways or use two fingers to orbit.">Drag the 2×2 brick to slide it, or click it for handles to lift and turn it. Drag the background to orbit and ctrl + scroll to zoom.</span>
+      </div>
+    </div>
+    <p class="demo-cap">
+      The energy <i>E</i> of a two-part assembly as a function of where the upper brick is placed on the lower one.
+      It is zero (ink) exactly at valid seats (<i>c<sub>h</sub></i>&nbsp;=&nbsp;0): isolated points where the brick is held rigidly, and arcs where it connects to a single stud and can swivel.
+      The upper brick is colored by how far its material must move to reach a valid seat, with needles showing the direction.
+  </p>
+  </div>
+
+  <p>
+    <i>E</i> models each assembly as an electrical network: parts are nodes, and each candidate seat <i>h</i> adds a conductance <i>g<sub>h</sub></i> between two parts.
+    Let &Omega;<sub><i>ab</i></sub> denote the effective resistance between parts <i>a</i> and <i>b</i>.
+    The energy is
+  </p>
+  <p class="eq" style="text-align:center;font-size:1.08em;margin:10px 0 12px">
+    <i>E</i> = <span style="display:inline-block;vertical-align:middle;text-align:center;font-size:.9em;line-height:1.1"><span style="display:block;border-bottom:1px solid currentColor;padding:0 2px">1</span><span style="display:block;padding:0 2px"><i>N</i>&minus;1</span></span>
+    &sum;<sub><i>a</i>&lt;<i>b</i></sub> &phi;(&Omega;<sub><i>ab</i></sub> &minus; (<i>N</i>&minus;1)&rho;)
+  </p>
+  <p>
+    where &rho; is a small seat resistance and &phi; is a smooth hinge that is zero for nonpositive arguments and positive otherwise.
+    If exactly seated connections join all parts, every pair is linked by a path of at most <i>N</i>&minus;1 resistances &rho;, so &Omega;<sub><i>ab</i></sub>&nbsp;&le;&nbsp;(<i>N</i>&minus;1)&rho; and both <i>E</i> and its gradient vanish.
+    In contrast, a detached group of parts has a high effective resistance to the rest and is pulled toward it through candidate seats in reach.
+  </p>
+
+  <div class="wide">
+    <div class="demo" id="netdemo">
+      <div class="hud"><div class="val"><i>E</i> = <span data-e>…</span></div><span class="chip" data-chip>…</span></div>
+      <div class="stage"><div class="loading">Loading…</div></div>
+      <div class="controls">
+        <button class="primary" data-act="guide"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 2.5v11l9-5.5z" fill="currentColor"/></svg>Guide</button>
+        <label class="scrub"><input type="range" min="0" max="1000" value="0" data-s disabled aria-label="progress of Guide" /></label>
+        <button data-act="shake">Shake</button>
+        <button data-act="reset"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M8 3a5 5 0 1 1-4.6 3" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M2.2 2.6 3.6 6.8 7.6 5.2z" fill="currentColor"/></svg>Reset</button>
+        <label><input type="checkbox" data-act="net" checked /> show network</label>
+        <span class="hint" data-hint-touch="Tap a brick, then drag it to slide it or drag a ring to turn it. Swipe sideways or use two fingers to orbit.">Drag a brick to slide it. Shake scatters the bricks slightly, and the other controls are as above.</span>
+      </div>
+    </div>
+    <p class="demo-cap">
+      Each candidate seat is drawn as a wire, yellow when seated.
+      The disordered estimate consists of seated groups joined only through weak, unseated candidates, so its effective resistances &Omega;<sub><i>ab</i></sub>, and hence <i>E</i>, are high.
+  </p>
+  </div>
+
+  <h3>Test-Time Guidance</h3>
+  <p>
+    Following diffusion posterior sampling (DPS), we condition on connectedness with the field as the negative log-likelihood, correcting poses in late steps along its gradient at the model's predicted final assembly.
+    No retraining or auxiliary networks are needed to apply the guidance at sampling time during inference.
+  </p>
+
+  <figure class="wide" style="margin-top:22px">
+    <div class="row">
+      <figure style="flex: 2.4038 0 0"><img src="assets/field_ring.avif" width="3072" height="1278" alt="A noisy duck estimate and six exactly connected assemblies of its parts, each with zero energy" /></figure>
+    </div>
+    <figcaption class="cap-justified">
+      A noisy estimate (center) and six nearby valid structures built from the same parts, colored by how far their material moves from the estimate.
+      <i>E</i>&nbsp;=&nbsp;0 on each of them.
+    </figcaption>
+  </figure>
+
+  <h2 id="paper">Paper</h2>
+  <div class="paper-row">
+    <div class="paper-thumb"><img src="assets/paper_thumb.avif" width="720" height="1157" alt="The paper's pages" loading="lazy" /></div>
+    <div>
+    <h3>Abstract</h3>
+    <p>
+      Given a set of LEGO parts and an image of an assembled object, our task is to infer the pose of each part to assemble the object.
+      In contrast with traditional 3D reconstruction, doing so requires satisfying discrete physical constraints, which provide structure but render the problem combinatorial and highly sensitive to small pose errors.
+      To learn a prior over how parts fit together, we train a set-conditioned <i>SE</i>(3) flow model on procedurally generated assemblies.
+      We then finetune this model to inject image conditioning, using 1% as much data.
+      However, while the learned flow captures global structure, it does not enforce connectivity.
+      To address this, we introduce an analytic connectivity-field guidance to pull predictions toward connected assemblies at test time.
+      Through this, we demonstrate improved build quality with model size, pretraining, and guidance.
+      We make our models and data available for research purposes at <a href="https://kulits.github.io/BrickFlow/">https://kulits.github.io/BrickFlow/</a>.
+    </p>
+    </div>
+  </div>
+  <h3 id="bibtex">BibTeX</h3>
+<pre class="bib">@inproceedings{kulits2026brickflow,
+  author    = {Kulits, Peter and Schmid, Cordelia},
+  title     = {BrickFlow: Connectivity-Guided Brick Reconstruction},
+  booktitle = {Advances in Neural Information Processing Systems},
+  year      = {2026}
+}</pre>
+
+</main>
+
+<script type="module">
+  import { flowPlayer } from './js/flow_player.js';
+  import { pairDemo } from './js/pair_demo.js';
+  import { networkDemo } from './js/network_demo.js';
+  if (matchMedia('(pointer: coarse)').matches) document.querySelectorAll('[data-hint-touch]').forEach((h) => (h.textContent = h.dataset.hintTouch));
+  const json = async (url) => (await fetch(url)).json();
+  const start = (id, run) => {
+    const el = document.getElementById(id), note = el.querySelector('.loading');
+    run(el).then(() => note.remove(), (e) => { note.textContent = `Could not start (${e.message})`; console.error(e); });
+  };
+  start('player', async (el) => flowPlayer(el, { index: await json('data/trajectories.json') }));
+  start('pairdemo', pairDemo);
+  start('netdemo', async (el) => networkDemo(el, { states: await json('data/duck_states.json') }));
+</script>
+</body>
+</html>
