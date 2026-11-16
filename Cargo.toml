@@ -1,0 +1,25 @@
+[package]
+name = "brickflow"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.89"
+description = "BrickFlow's native core: connection atlas, connectivity energy, snap, training pairs, and mass movement"
+license = "MIT"
+publish = false
+
+[lib]
+name = "_core"
+path = "rust/lib.rs"
+
+[dependencies]
+nalgebra = "0.34"
+numpy = "0.29"
+procbrick = { path = "../ProcBrick", default-features = false }
+pyo3 = { version = "0.29", features = ["abi3-py310"] }
+rand = "0.9"
+rand_distr = "0.5"
+rayon = "1"
+
+[profile.release]
+codegen-units = 1
+lto = "fat"

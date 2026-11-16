@@ -1,0 +1,44 @@
+[build-system]
+requires = ["maturin>=1.9.4,<2"]
+build-backend = "maturin"
+
+[project]
+name = "brick-flow"
+dynamic = ["version"]
+description = "BrickFlow: Connectivity-Guided Brick Reconstruction"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Peter Kulits" }]
+dependencies = [
+    "bricknet==0.1.1",
+    "huggingface_hub>=0.23",
+    "numpy",
+    "pillow>=11.3",
+    "procbrick==0.1.0",
+    "torch>=2.8",
+    "torchvision",
+    "transformers>=4.56",
+    "triton; platform_system == 'Linux'",
+]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Rust",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+]
+
+[project.urls]
+Homepage = "https://kulits.github.io/BrickFlow/"
+Repository = "https://github.com/kulits/BrickFlow"
+
+[tool.maturin]
+python-source = "src"
+module-name = "brickflow._core"
+include = [{ path = ".cargo/config.toml", format = "sdist" }]
+
+[tool.black]
+line-length = 120
+target-version = ["py310"]
